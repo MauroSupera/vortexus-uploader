@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Início</a></li>
+            {% if current_folder %}
+                {% set ancestors = [] %}
+                {% set current = current_folder %}
+                {% while current %}
+                    {% do ancestors.append(current) %}
+                    {% set current = current.parent %}
+                {% endwhile %}
+                {% for folder in ancestors|reverse %}
+                    <li class="breadcrumb-item {% if loop.last %}active{% endif %}">
+                        {% if not loop.last %}
+                            <a href="{{ url_for('view_folder', folder_id=folder.id) }}">{{ folder.name }}</a>
+                        {% else %}
+                            {{ folder.name }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            {% endif %}
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+                <i class="fas fa-folder-plus"></i> Nova Pasta
+            </button>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload"></i> Upload
+            </button>
+        </div>
+    </div>
+
+    <!-- Folders -->
+    {% if folders %}
+    <div class="row mb-4">
+        <div class="col">
+            <h4>Pastas</h4>
+            <div class="list-group">
+                {% for folder in folders %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('view_folder', folder_id=folder.id) }}" class="text-decoration-none text-dark">
+                        <i class="fas fa-folder text-warning"></i> {{ folder.name }}
+                    </a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#moveFolderModal" data-folder-id="{{ folder.id }}">
+                            <i class="fas fa-arrows-alt"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteFolderModal" data-folder-id="{{ folder.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Files -->
+    {% if files %}
+    <div class="row">
+        <div class="col">
+            <h4>Arquivos</h4>
+            <div class="list-group">
+                {% for file in files %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('get_file', filename=file.filename) }}" class="text-decoration-none text-dark">
+                        <i class="fas fa-file"></i> {{ file.original_filename }}
+                    </a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#moveFileModal" data-file-id="{{ file.id }}">
+                            <i class="fas fa-arrows-alt"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteFileModal" data-file-id="{{ file.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not folders and not files %}
+    <div class="alert alert-info">
+        Esta pasta está vazia.
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal fade" id="newFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Pasta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_folder') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="folderName" class="form-label">Nome da Pasta</label>
+                        <input type="text" class="form-control" id="folderName" name="name" required>
+                    </div>
+                    <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload de Arquivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Selecione o arquivo</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                        <div class="form-text">
+                            Extensões permitidas: {% for ext in allowed_extensions %}{{ ext.extension }}{% if not loop.last %}, {% endif %}{% endfor %}
+                        </div>
+                        <div class="form-text">
+                            Limite de uploads simultâneos: {{ max_uploads }}
+                        </div>
+                    </div>
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Move Folder Modal -->
+<div class="modal fade" id="moveFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mover Pasta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="moveFolderForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newParentFolder" class="form-label">Selecione o destino</label>
+                        <select class="form-select" id="newParentFolder" name="new_parent_id">
+                            <option value="">Raiz</option>
+                            {% for folder in current_user.folders %}
+                                <option value="{{ folder.id }}">{{ folder.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Mover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Move File Modal -->
+<div class="modal fade" id="moveFileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mover Arquivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="moveFileForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newFolder" class="form-label">Selecione o destino</label>
+                        <select class="form-select" id="newFolder" name="new_folder_id">
+                            <option value="">Raiz</option>
+                            {% for folder in current_user.folders %}
+                                <option value="{{ folder.id }}">{{ folder.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Mover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Folder Modal -->
+<div class="modal fade" id="deleteFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Excluir Pasta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deleteFolderForm" action="" method="post">
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir esta pasta e todo seu conteúdo?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete File Modal -->
+<div class="modal fade" id="deleteFileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Excluir Arquivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deleteFileForm" action="" method="post">
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir este arquivo?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Move Folder Modal
+    const moveFolderModal = document.getElementById('moveFolderModal');
+    moveFolderModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const folderId = button.getAttribute('data-folder-id');
+        const form = document.getElementById('moveFolderForm');
+        form.action = `/folder/move/${folderId}`;
+    });
+
+    // Move File Modal
+    const moveFileModal = document.getElementById('moveFileModal');
+    moveFileModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const fileId = button.getAttribute('data-file-id');
+        const form = document.getElementById('moveFileForm');
+        form.action = `/file/move/${fileId}`;
+    });
+
+    // Delete Folder Modal
+    const deleteFolderModal = document.getElementById('deleteFolderModal');
+    deleteFolderModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const folderId = button.getAttribute('data-folder-id');
+        const form = document.getElementById('deleteFolderForm');
+        form.action = `/folder/delete/${folderId}`;
+    });
+
+    // Delete File Modal
+    const deleteFileModal = document.getElementById('deleteFileModal');
+    deleteFileModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const fileId = button.getAttribute('data-file-id');
+        const form = document.getElementById('deleteFileForm');
+        form.action = `/file/delete/${fileId}`;
+    });
+});
+</script>
+{% endblock %}

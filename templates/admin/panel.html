@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Painel Administrativo</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Estatísticas</h5>
+                    <p class="card-text">
+                        <strong>Total de Usuários:</strong> {{ users|length }}<br>
+                        <strong>Armazenamento Total:</strong> {{ "%.2f"|format(total_storage_mb) }} MB
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Upload de Arquivos</h5>
+                    <form action="{{ url_for('admin_upload') }}" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Selecione o arquivo</label>
+                            <input type="file" class="form-control" id="file" name="file" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Extensões Permitidas -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Extensões Permitidas</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExtensionModal">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Extensão</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ext in extensions %}
+                                <tr>
+                                    <td>.{{ ext.extension }}</td>
+                                    <td>
+                                        <span class="badge {% if ext.enabled %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ 'Ativo' if ext.enabled else 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form action="{{ url_for('manage_extensions') }}" method="post" class="d-inline">
+                                            <input type="hidden" name="action" value="toggle">
+                                            <input type="hidden" name="extension_id" value="{{ ext.id }}">
+                                            <button type="submit" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-power-off"></i>
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('manage_extensions') }}" method="post" class="d-inline">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="extension_id" value="{{ ext.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usuários -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Usuários</h5>
+                    <a href="{{ url_for('add_user') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-user-plus"></i> Novo Usuário
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Usuário</th>
+                                    <th>Email</th>
+                                    <th>Armazenamento</th>
+                                    <th>Uploads Simultâneos</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {{ "%.2f"|format(user.storage_used / 1024 / 1024) }} / {{ "%.2f"|format(user.storage_limit / 1024 / 1024) }} MB
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar {% if (user.storage_used / user.storage_limit) > 0.9 %}bg-danger{% elif (user.storage_used / user.storage_limit) > 0.7 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                role="progressbar" 
+                                                style="width: {{ (user.storage_used / user.storage_limit * 100)|round }}%">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ user.max_simultaneous_uploads }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#userSettingsModal" 
+                                                data-user-id="{{ user.id }}"
+                                                data-storage-limit="{{ user.storage_limit / 1024 / 1024 }}"
+                                                data-max-uploads="{{ user.max_simultaneous_uploads }}">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Extension Modal -->
+<div class="modal fade" id="addExtensionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Extensão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('manage_extensions') }}" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add">
+                    <div class="mb-3">
+                        <label for="extension" class="form-label">Extensão</label>
+                        <input type="text" class="form-control" id="extension" name="extension" required
+                               placeholder="Exemplo: pdf, jpg, doc (sem ponto)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- User Settings Modal -->
+<div class="modal fade" id="userSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configurações do Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="userSettingsForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="storage_limit" class="form-label">Limite de Armazenamento (MB)</label>
+                        <input type="number" class="form-control" id="storage_limit" name="storage_limit" required step="0.1">
+                    </div>
+                    <div class="mb-3">
+                        <label for="max_simultaneous_uploads" class="form-label">Máximo de Uploads Simultâneos</label>
+                        <input type="number" class="form-control" id="max_simultaneous_uploads" name="max_simultaneous_uploads" required min="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userSettingsModal = document.getElementById('userSettingsModal');
+    userSettingsModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const userId = button.getAttribute('data-user-id');
+        const storageLimit = button.getAttribute('data-storage-limit');
+        const maxUploads = button.getAttribute('data-max-uploads');
+        
+        const form = document.getElementById('userSettingsForm');
+        form.action = `/admin/user/${userId}/settings`;
+        
+        document.getElementById('storage_limit').value = storageLimit;
+        document.getElementById('max_simultaneous_uploads').value = maxUploads;
+    });
+});
+</script>
+{% endblock %}

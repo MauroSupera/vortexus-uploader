@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Admin Sidebar -->
+            <div class="list-group mb-4">
+                <a href="{{ url_for('admin_panel') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users"></i> Usuários
+                </a>
+                <a href="{{ url_for('manage_extensions') }}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-file-alt"></i> Extensões
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Gerenciar Extensões</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExtensionModal">
+                        <i class="fas fa-plus"></i> Nova Extensão
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if extensions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Extensão</th>
+                                    <th>Status</th>
+                                    <th>Data de Criação</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ext in extensions %}
+                                <tr>
+                                    <td>{{ ext.extension }}</td>
+                                    <td>
+                                        <span class="badge {% if ext.enabled %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ 'Ativo' if ext.enabled else 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ ext.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        <form action="{{ url_for('manage_extensions') }}" method="post" class="d-inline">
+                                            <input type="hidden" name="extension_id" value="{{ ext.id }}">
+                                            <input type="hidden" name="action" value="toggle">
+                                            <button type="submit" class="btn btn-sm {% if ext.enabled %}btn-warning{% else %}btn-success{% endif %}">
+                                                <i class="fas {% if ext.enabled %}fa-ban{% else %}fa-check{% endif %}"></i>
+                                                {{ 'Desativar' if ext.enabled else 'Ativar' }}
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('manage_extensions') }}" method="post" class="d-inline">
+                                            <input type="hidden" name="extension_id" value="{{ ext.id }}">
+                                            <input type="hidden" name="action" value="delete">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza que deseja excluir esta extensão?')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma extensão cadastrada.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Extension Modal -->
+<div class="modal fade" id="addExtensionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Extensão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('manage_extensions') }}" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add">
+                    <div class="mb-3">
+                        <label for="extension" class="form-label">Extensão</label>
+                        <input type="text" class="form-control" id="extension" name="extension" required 
+                               placeholder="Exemplo: pdf, doc, jpg"
+                               pattern="[a-zA-Z0-9]+"
+                               title="Apenas letras e números são permitidos">
+                        <div class="form-text">Digite a extensão sem o ponto (.). Exemplo: pdf</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

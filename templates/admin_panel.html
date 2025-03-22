@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Gerenciamento de Usuários -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Gerenciamento de Usuários</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome de Usuário</th>
+                                    <th>Email</th>
+                                    <th>Admin</th>
+                                    <th>Armazenamento</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ 'Sim' if user.is_admin else 'Não' }}</td>
+                                    <td>{{ user.storage_used|filesizeformat }} / {{ user.storage_limit|filesizeformat }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary me-1" onclick="editUser({{ user.id }}, '{{ user.username }}', '{{ user.email }}', {{ user.is_admin|tojson }}, {{ user.storage_limit }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gerenciamento de Extensões -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Gerenciamento de Extensões</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button class="btn btn-primary" onclick="showAddExtensionModal()">
+                            <i class="fas fa-plus"></i> Adicionar Extensão
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Extensão</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ext in extensions %}
+                                <tr>
+                                    <td>{{ ext.name }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if ext.enabled else 'bg-danger' }}">
+                                            {{ 'Ativa' if ext.enabled else 'Inativa' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary me-1" onclick="toggleExtension('{{ ext.name }}', {{ 'true' if not ext.enabled else 'false' }})">
+                                            {{ 'Ativar' if not ext.enabled else 'Desativar' }}
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteExtension('{{ ext.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição de Usuário -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" name="user_id">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">Nome de Usuário</label>
+                        <input type="text" class="form-control" id="editUsername" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStorageLimit" class="form-label">Limite de Armazenamento (bytes)</label>
+                        <input type="number" class="form-control" id="editStorageLimit" name="storage_limit" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin">
+                        <label class="form-check-label" for="editIsAdmin">Administrador</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveUserEdit()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Adição de Extensão -->
+<div class="modal fade" id="addExtensionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Extensão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addExtensionForm">
+                    <div class="mb-3">
+                        <label for="extensionName" class="form-label">Nome da Extensão</label>
+                        <input type="text" class="form-control" id="extensionName" name="name" required 
+                               placeholder="Exemplo: pdf, doc, jpg">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="addExtension()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+:root {
+    --dark-bg: #1e1e1e;
+    --darker-bg: #141414;
+    --card-bg: #252525;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --text-color: #e0e0e0;
+    --text-muted: #888;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--text-color);
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.table {
+    color: var(--text-color);
+}
+
+.table > :not(caption) > * > * {
+    background-color: var(--card-bg);
+    border-bottom-color: var(--border-color);
+}
+
+.table thead th {
+    border-bottom-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+}
+
+.form-control {
+    background-color: var(--darker-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.form-control:focus {
+    background-color: var(--darker-bg);
+    border-color: #0d6efd;
+    color: var(--text-color);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-label {
+    color: var(--text-color);
+}
+
+.form-check-input {
+    background-color: var(--darker-bg);
+    border-color: var(--border-color);
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-check-label {
+    color: var(--text-color);
+}
+
+.btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.modal-title {
+    color: var(--text-color);
+}
+
+.badge {
+    font-size: 0.875rem;
+}
+
+.btn-group {
+    gap: 0.25rem;
+}
+
+.btn-group .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-group .fas {
+    font-size: 0.875rem;
+}
+</style>
+
+<script>
+function editUser(id, username, email, isAdmin, storageLimit) {
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editIsAdmin').checked = isAdmin;
+    document.getElementById('editStorageLimit').value = storageLimit;
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+function saveUserEdit() {
+    const form = document.getElementById('editUserForm');
+    const formData = new FormData(form);
+    const data = {
+        user_id: formData.get('user_id'),
+        username: formData.get('username'),
+        email: formData.get('email'),
+        is_admin: formData.get('is_admin') === 'on',
+        storage_limit: formData.get('storage_limit')
+    };
+
+    fetch('/admin/users/edit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro ao editar usuário: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao editar usuário');
+    });
+}
+
+function deleteUser(id, username) {
+    if (confirm(`Tem certeza que deseja excluir o usuário "${username}"?`)) {
+        fetch('/admin/users/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao excluir usuário: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao excluir usuário');
+        });
+    }
+}
+
+function showAddExtensionModal() {
+    document.getElementById('extensionName').value = '';
+    new bootstrap.Modal(document.getElementById('addExtensionModal')).show();
+}
+
+function addExtension() {
+    const extensionName = document.getElementById('extensionName').value.trim();
+    if (!extensionName) {
+        alert('Por favor, insira um nome de extensão válido');
+        return;
+    }
+
+    fetch('/admin/extensions/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: extensionName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro ao adicionar extensão: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao adicionar extensão');
+    });
+}
+
+function toggleExtension(name, enable) {
+    fetch('/admin/extensions/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: name, enable: enable })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro ao alterar status da extensão: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao alterar status da extensão');
+    });
+}
+
+function deleteExtension(name) {
+    if (confirm(`Tem certeza que deseja excluir a extensão "${name}"?`)) {
+        fetch('/admin/extensions/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao excluir extensão: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao excluir extensão');
+        });
+    }
+}
+</script>
+{% endblock %}

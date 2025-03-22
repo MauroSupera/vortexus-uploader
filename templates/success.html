@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Bem-sucedido</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Bem-sucedido!</h1>
+        <div class="success-container">
+            <p>Seu arquivo <strong>{{ filename }}</strong> foi enviado com sucesso.</p>
+            <div class="url-container">
+                <p>Link para o arquivo:</p>
+                <div class="url-box">
+                    <input type="text" id="file-url" value="{{ file_url }}" readonly>
+                    <button onclick="copyUrl()" class="copy-button">Copiar</button>
+                </div>
+            </div>
+            <div class="buttons">
+                <a href="{{ file_url }}" target="_blank" class="view-button">Visualizar Arquivo</a>
+                <a href="{{ url_for('index') }}" class="back-button">Voltar ao Início</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyUrl() {
+            const urlField = document.getElementById('file-url');
+            urlField.select();
+            document.execCommand('copy');
+            
+            const copyButton = document.querySelector('.copy-button');
+            copyButton.textContent = 'Copiado!';
+            setTimeout(() => {
+                copyButton.textContent = 'Copiar';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
